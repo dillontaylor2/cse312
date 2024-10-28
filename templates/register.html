@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Pure CSS Login Form</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="stylesheet" href="../static/indexstyle.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="center">
+          <h1>Sign Up</h1>
+          {% if username_exists %}
+          Username already Exists
+          {% endif %}
+          {% if password_mismatch %}
+          Passwords dont match
+          {% endif %}
+          <form action="/createAccount" method="POST">
+              <div class="txt_field">
+                  <input type="text" name="username" required>
+                  <span></span>
+                  <label>Username</label>
+              </div>
+              <div class="txt_field">
+                  <input type="password" name="password" required>
+                  <span></span>
+                  <label>Password</label>
+              </div>
+              <div class="txt_field">
+                <input type="password" name="confirmed_password" required>
+                <span></span>
+                <label>Confirm Password</label>
+            </div>
+            <div class="txt_field">
+              <input type="number" name="age" required>
+              <span></span>
+              <label>Age</label>
+          </div>
+          <div class="txt_field">
+            <input type="text" name="catchphrase" required>
+            <span></span>
+            <label>Catch Phrase</label>
+        </div>
+            <div>
+              <label>Choose your Favorite Cheese</label><br>
+              <input type="checkbox" value="Mozeralla" name="Mozeralla"><label>Mozeralla</label><br>
+              <input type="checkbox" value="Cheddar" name="Cheddar"><label>Cheddar</label><br>
+              <input type="checkbox" value="Brie" name="Brie"><label>Brie</label><br>
+            </div>
+              <div class="submitter">
+                <input name="submit" type="Submit" value="Sign Up">
+              </div>
+          </form>
+      </div>
+    </div>
+  </body>
+</html>
