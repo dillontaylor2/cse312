@@ -1,3 +1,5 @@
+from urllib.parse import uses_relative
+
 from PIL import Image, ImageOps
 from flask import Flask, render_template, send_from_directory, redirect, request, make_response, url_for, jsonify
 from pymongo import MongoClient
@@ -105,7 +107,14 @@ def handle_connect(data):
         emit('error', {'message': 'Unauthorized'}, broadcast=False)
         return False
     username = user.get("username", "Guest")
-    emit('user_connected', {"username": username}, broadcast=True)
+    posts_data.insert_one({"username": username})
+    fin_data = posts_data.find({})
+    users = []
+    for entry in fin_data:
+        print(entry)
+        users.append(entry["username"])
+    emit('user_connected', users, broadcast=True)
+
 
 @socketio.on('disconnect')
 def handle_disconnect():
@@ -113,7 +122,12 @@ def handle_disconnect():
     user = check_user(authtoken) if authtoken else None
     if user != "None" and user is not None:
         username = user.get("username", "Guest")
-        emit('user_disconnected', {"username": username}, broadcast=True)
+        posts_data.delete_one({"username": username})
+        fin_data = posts_data.find({})
+        users = []
+        for entry in fin_data:
+            users.append(entry["username"])
+        emit('user_disconnected', users, broadcast=True)
 
 @socketio.on('chat_message')
 def handle_chat_message(data):
@@ -203,6 +217,55 @@ def serve_signup():
     response = make_response(render_template("register.html"))
     response.headers["Content-Type"] = "text/html"
     return response
+
+@app.route("/dms")
+def serve_dms():
+    response = make_response(render_template("dms.html"))
+    response.headers["Content-Type"] = "text/html"
+    return response
+
+DMdata = {}
+
+def addDMmessage(user1, user2, message):
+    attempt1 = DMdata.get(user1+user2, None)
+    attempt2 = DMdata.get(user2+user1, None)
+    if attempt1 is None and attempt2 is None:
+        DMdata[user1+user2] = []
+        DMdata[user1+user2].append(message)
+    if attempt1 is not None and attempt2 is None:
+        DMdata[user1+user2].append(message)
+    if attempt2 is not None and attempt1 is None:
+        DMdata[user2+user1].append(message)
+    return
+
+def getDMstruct(user1, user2):
+    attempt1 = DMdata.get(user1 + user2, None)
+    attempt2 = DMdata.get(user2 + user1, None)
+    if attempt1 is not None and attempt2 is None:
+        return attempt1
+    if attempt2 is not None and attempt1 is None:
+        return attempt2
+    return False
+
+@socketio.on('send_dm_message')
+def handle_chat_message(data):
+    authtoken = request.cookies.get('authtoken')
+    user = check_user(authtoken)
+    username = user.get("username", "Guest")
+    message = data.get("message", "")
+    sendingTo = data.get('recipient', "")
+    if message and sendingTo:
+        addDMmessage(username, sendingTo, message)
+        emit('chat_message', {"username": username, "message": message}, broadcast=True)
+
+@socketio.on("get_dm_message_history")
+def get_dm_message_history(data):
+    authtoken = request.cookies.get('authtoken')
+    user = check_user(authtoken)
+    username = user.get("username", "Guest")
+    recipient = data.get('recipient', "")
+    if username is not "Guest" and recipient is not "":
+        emit("return_dm_history", {"history": getDMstruct(username, recipient)}, broadcast=True)
 
 @app.route("/login")
 def serve_login():
