@@ -3,35 +3,58 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width" />
     <title>Fromage</title>
-    <script src="../static/loginandcreate.js" ></script>
-    <link rel="stylesheet" href="../static/homepage.css" >
-</head>
+    <script src="/static/loginandcreate.js" ></script>
+    <link rel="stylesheet" href="/static/homepage.css">
+    <link rel="shortcut icon" type="image/png" href="/static/Untitled.png">
+   <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Fira+Sans:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Host+Grotesk:ital,wght@0,300..800;1,300..800&family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400;1,700;1,900&family=Monsieur+La+Doulaise&family=Yesteryear&display=swap" rel="stylesheet"></head>
 <body>
     <div class="topbar">
-        <a class="active" href="">Home</a>
-        <a href="login">Log In</a>
-        <a href="register">Sign Up</a>
+        <a class="active" href="/">fromage</a>
+        <div class="register">
+            {% if user == "None" %}
+            <a href="/login">Log In</a>
+            <a href="/register">Sign Up</a>
+            {% endif %}
         {% if user != "None" %}
-        <a href="logout">Logout</a>
-            {{ user }}
+        <a href="/logout">Logout</a>
+        <a href="/profile/{{ user }}" id="profile" >{{ user }}</a>
         {% endif %}
+        </div>
+
 
         
     </div>
     <div class="mainHello">
-        <h1>Welcome to Fromage</h1>
-        <img id="logo" class="logo" src="../static/logo.png" width="100" height="100">
-        <button onclick="rotate()">Click to Flip!</button>
+        <div id="banner">
+            <img src="{{ cheesebannerlink }}" alt="Logo" class="logo">
+        <h1 id="headline">Experience Fromance</h1>
+        </div>
     </div>
     {% if user2 %}
         <h1>YOU HAVE A MATCH WITH {{ user2 }}</h1>
     {% endif %}
+    <h1 id="profiletitle">🧀 Profiles For You 🧀</h1>
+
     <div class="Profiles" style="overflow-y: scroll;">
-        <h1>🧀 Profiles For You 🧀</h1>
         {% for person in dates %}
         <div class="profileContainer">
-            <div class="box">
-                <h2>{{ person["username"] }}</h2>
+            <div style="{{ colorchangegen(person) }}"class="box">
+                <img id="pfp" src="{{ person.get("profilepic") }}">
+                <h2><a href="/profile/{{ person["username"] }}">{{ person["username"] }}</a></h2>
+                <p>Age: {{ person["age"] }}</p>
+                <p>{{ person["catchphrase"] }}</p>
+                <button onclick="like_user(this)" user1="{{ user }}" user2="{{ person['username'] }}">Unlike</button><br>
+            </div>
+        </div>
+        {% endfor %}
+
+        {% for person in soon_to_be_dates %}
+        <div class="profileContainer">
+            <div style="{{ colorchangegen(person) }}"class="box">
+                <img id="pfp" src="{{ person.get("profilepic") }}">
+                <h2><a href="/profile/{{ person["username"] }}">{{ person["username"] }}</a></h2>
                 <p>Age: {{ person["age"] }}</p>
                 <p>{{ person["catchphrase"] }}</p>
                 <button onclick="like_user(this)" user1="{{ user }}" user2="{{ person['username'] }}">Like</button><br>
@@ -39,9 +62,39 @@
         </div>
         {% endfor %}
     </div>
+    <div id="popup" style="display: none;">
+        <div style="text-align: center;">
+          <h2>We found a match!!</h2>
+          <p id="match_maker"></p>
+          <button onclick="closePopup()">Close</button>
+        </div>
+      </div>
+    <!-- Real-Time Chat Section -->
+    <div>
+        <h2>Live Chat</h2>
+        <div id="chat-container" style="height: 300px; overflow-y: scroll; padding: 10px; border: 1px solid black;">
+            <ul id="chat-box" style="list-style-type: none; padding: 10px;"></ul>
+        </div>
+        <div style="padding: 10px;">
+        </div>
+        <form id="chat-form">
+            <input id="chat-input" type="text" placeholder="Type your message..." required />
+            <button type="submit">Send</button>
+        </form>
+    </div>
 
+    <!-- Real-Time Posts Section -->
+    <div>
+        <h2>Posts</h2>
+        <ul id="post-list"></ul>
+        <form id="post-form">
+            <input id="post-input" type="text" placeholder="Share something..." required />
+            <button type="submit">Post</button>
+        </form>
+    </div>
+    <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
     <script>
-        function like_user(sentence){
+        function like_user(sentence) {
             var inner = sentence.innerHTML;
             if (inner === "Like") {
                 sentence.innerHTML = "Unlike"
@@ -67,12 +120,96 @@
             const xhr = new XMLHttpRequest();
             xhr.open("POST", "/like_user");
             xhr.setRequestHeader("Content-Type", "application/json; charset=UTF-8");
-            xhr.onload = () => {
-                if (xhr.readyState == 4 && xhr.status == 201) {
-                console.log(JSON.parse(xhr.responseText));
+            xhr.onreadystatechange = () => {
+                if (xhr.readyState == 4 && xhr.status == 200) {
+                received = JSON.parse(xhr.responseText);
+                document.getElementById("popup").style.display = "block";
+                document.getElementById("match_maker").innerHTML = "We found a match for you, their name is " + received;
                 }
             };
             xhr.send(body);
+        }
+
+        function closePopup() {
+            document.getElementById("popup").style.display = "none";
+        }
+
+        // WebSocket Integration
+        const socket = io({transports: ['websocket']}); // Connect to the WebSocket server
+
+        // WebSocket Event Handlers
+        socket.on('connect', () => {
+            console.log('Connected to WebSocket server');
+        });
+
+        socket.on('user_connected', (data) => {
+            var username = data.username
+            console.log(`${data.username} joined.`);
+        });
+
+        socket.on('user_disconnected', (data) => {
+            console.log(`${data.username} left.`);
+        });
+
+        // Handle incoming chat messages
+        socket.on('chat_message', (data) => {
+            const chatBox = document.getElementById('chat-box');
+            if (chatBox) {
+                const messageItem = document.createElement('li');
+                messageItem.textContent = `${data.username}: ${data.message}`;
+                chatBox.appendChild(messageItem);
+                chatBox.scrollTop = chatBox.scrollHeight; //auto scroll down
+            } else {
+                console.error("Chat box element not found");
+            }
+        });
+
+        // Handle new posts
+        socket.on('new_post', (data) => {
+            const postList = document.getElementById('post-list');
+            if (postList) {
+                const postItem = document.createElement('li');
+                postItem.textContent = `${data.author}: ${data.content}`;
+                postList.appendChild(postItem);
+            } else {
+                console.error("Post list element not found");
+            }
+        });
+
+        // Chat Form Submission
+        const chatForm = document.getElementById('chat-form');
+        if (chatForm) {
+            chatForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const chatInput = document.getElementById('chat-input');
+                const message = chatInput.value.trim();
+                if (message) {
+                    socket.emit('chat_message', { message });
+                    chatInput.value = '';
+                } else {
+                    console.error("Chat input is empty");
+                }
+            });
+        } else {
+            console.error("Chat form element not found");
+        }
+
+        // Post Form Submission
+        const postForm = document.getElementById('post-form');
+        if (postForm) {
+            postForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const postInput = document.getElementById('post-input');
+                const content = postInput.value.trim();
+                if (content) {
+                    socket.emit('new_post', { content });
+                    postInput.value = '';
+                } else {
+                    console.error("Post input is empty");
+                }
+            });
+        } else {
+            console.error("Post form element not found");
         }
     </script>
 </body>
